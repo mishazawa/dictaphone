@@ -1,0 +1,9 @@
+[package]
+name = "dictaphone"
+version = "0.1.0"
+authors = ["mishazawa <misha.mishchenko@x2sy.com>"]
+edition = "2018"
+
+[dependencies]
+cpal = "0.10.0"
+hound = "3.4.0"
