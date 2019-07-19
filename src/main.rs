@@ -6,11 +6,29 @@ use std::sync::mpsc;
 use std::thread;
 use std::path::Path;
 use std::i16;
+use std::u8;
 use std::time::{SystemTime};
+use std::io::{self, Write};
+use std::env;
+
 
 const WAV_AMP:f32 = i16::MAX as f32;
+const STD_AMP:f32 = u8::MAX as f32 / 2.0;
+
 
 fn main() {
+  let mut write_to_stdout = true;
+  let mut write_to_wav = true;
+  for argument in env::args() {
+    if argument == "--no-std" {
+      write_to_stdout = false;
+    }
+    if argument == "--no-wav" {
+      write_to_wav = false;
+    }
+    println!("{:?}", argument);
+  }
+
   let host = cpal::default_host();
   let device = host.default_input_device().expect("No input device");
   let format = device.default_input_format().expect("No input format");
@@ -39,7 +57,8 @@ fn main() {
   };
 
   let (sound_tx, sound_rx) = mpsc::channel();
-
+  let stdout = io::stdout();
+  let mut handle = stdout.lock();
   thread::spawn(move || {
     event_loop.run(move |id, event| {
       let data = match event {
@@ -60,7 +79,15 @@ fn main() {
 
   loop {
     if let Ok(data) = sound_rx.try_recv() {
-      data.iter().for_each(|sample| writer.write_sample((sample * WAV_AMP) as i16).unwrap());
+      if write_to_stdout {
+        let buff: Vec<u8> = data.clone().iter().map(|i| {
+          ((i + 1.0) * STD_AMP) as u8
+        }).collect();
+        handle.write_all(&buff[..]).expect("Can't write to stdout");
+      }
+      if write_to_wav {
+        data.iter().for_each(|sample| writer.write_sample((sample * WAV_AMP) as i16).unwrap());
+      }
     }
   }
 }
